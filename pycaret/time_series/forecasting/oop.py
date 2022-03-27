@@ -242,12 +242,12 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
         Parameters
         ----------
         fh : PyCaretForecastingHorizonTypes
-            `PyCaret` compatible Forecasting Horizon
+            'PyCaret' compatible Forecasting Horizon
 
         Returns
         -------
         ForecastingHorizon
-            `sktime` compatible Forecast Horizon
+            'sktime' compatible Forecast Horizon
 
         Raises
         ------
@@ -262,7 +262,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
                 raise ValueError(
                     f"If Forecast Horizon `fh` is an integer, it must be >= 1. You provided fh = '{fh}'!"
                 )
-        elif isinstance(fh, (List, np.ndarray)):
+        elif isinstance(fh, (list, np.ndarray)):
             fh = ForecastingHorizon(fh)
         elif isinstance(fh, (ForecastingHorizon)):
             # Good to go
@@ -480,7 +480,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
             )
 
         #### Convert DateTimeIndex index to PeriodIndex ----
-        # We use PeriodIndex in PyCaret since it seems to be more robust per `sktime``
+        # We use PeriodIndex in PyCaret since it seems to be more robust per 'sktime'
         # Ref: https://github.com/alan-turing-institute/sktime/blob/v0.10.0/sktime/forecasting/base/_fh.py#L524
         if isinstance(self.data.index, pd.DatetimeIndex):
             self.data.index = self.data.index.to_period()
@@ -739,7 +739,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
         """
         self.logger.info("Set up Train-Test Splits.")
 
-        # If `fh` is provided it splits by it
+        # If fh is provided it splits by it
         y = self.data[self.target_param]
         X = self.data.drop(self.target_param, axis=1)
 
@@ -829,16 +829,16 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
         if self.target_has_missing and self.numeric_imputation_target is None:
             raise ValueError(
                 "\nTime Series modeling automation relies on running statistical tests, plots, etc.\n"
-                "Many of these can not be run when data has missing values. \nYour target has "
+                "Many of these can not be run when data has missing values.\nYour target has "
                 f"{self.num_missing_target} missing values and `numeric_imputation_target` is set to "
-                "`None`. \nPlease enable imputation to proceed. "
+                "`None`.\nPlease enable imputation to proceed. "
             )
         if self.exogenous_has_missing and self.numeric_imputation_exogenous is None:
             raise ValueError(
                 "\nTime Series modeling automation relies on running statistical tests, plots, etc.\n"
-                "Many of these can not be run when data has missing values. \nYour exogenous data "
+                "Many of these can not be run when data has missing values.\nYour exogenous data "
                 f"has {self.num_missing_exogenous} missing values and `numeric_imputation_exogenous` is "
-                "set to `None`. \nPlease enable imputation to proceed. "
+                "set to `None`.\nPlease enable imputation to proceed. "
             )
 
         # Initialize empty steps ----
@@ -1141,7 +1141,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
             Indicates how to impute missing values in the target.
             If None, no imputation is done.
             If the target has missing values, then imputation is mandatory.
-            If str, then value passed as is to the underlying `sktime` imputer.
+            If str, then value passed as is to the underlying 'sktime' imputer.
             Allowed values are:
                 "drift", "linear", "nearest", "mean", "median", "backfill",
                 "bfill", "pad", "ffill", "random"
@@ -1152,7 +1152,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
             Indicates how to impute missing values in the exogenous variables.
             If None, no imputation is done.
             If exogenous variables have missing values, then imputation is mandatory.
-            If str, then value passed as is to the underlying `sktime` imputer.
+            If str, then value passed as is to the underlying 'sktime' imputer.
             Allowed values are:
                 "drift", "linear", "nearest", "mean", "median", "backfill",
                 "bfill", "pad", "ffill", "random"
@@ -2789,11 +2789,15 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
 
             # Estimator is Provided
             # If a single estimator, make a list
-            if isinstance(estimator, List):
+            if isinstance(estimator, list):
                 estimators = estimator
             else:
                 estimators = [estimator]
 
+            # According to PR by @Yard1
+            # "when will that case every occur? The experiment object will always
+            # have the get model name method, right?"
+            # TODO: Evaluate this during the refactor of this method.
             if hasattr(self, "_get_model_name") and hasattr(
                 self, "_all_models_internal"
             ):
@@ -3024,9 +3028,9 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
                 )
             else:
                 raise ValueError(
-                    "\n\nSetup has not been run and you have provided a estimator without the pipeline. "
-                    "You can either \n(1) Provide the complete pipeline without running setup to make "
-                    "the prediction OR \n(2) Run setup first before providing the estimator only."
+                    "\nSetup has not been run and you have provided a estimator without the pipeline. "
+                    "You can either\n(1) Provide the complete pipeline without running setup to make "
+                    "the prediction OR\n(2) Run setup first before providing the estimator only."
                 )
         return pipeline_with_model, estimator_
 
@@ -3048,12 +3052,12 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
         estimator : BaseForecaster
             The estimator to be used for predictions
         fh : Optional[PyCaretForecastingHorizonTypes]
-           `PyCaret` compatible Forecasting Horizon provided by user.
+           'PyCaret' compatible Forecasting Horizon provided by user.
 
         Returns
         -------
         ForecastingHorizon
-            `sktime` compatible Forecast Horizon to be used for predictions.
+            'sktime' compatible Forecast Horizon to be used for predictions.
         """
         if fh is None:
             if self._setup_ran:
@@ -4298,7 +4302,7 @@ class TimeSeriesExperiment(TSForecastingExperiment):
     def __init__(self) -> None:
         msg = (
             "DeprecationWarning: TimeSeriesExperiment class will be removed in "
-            "a future release. Please import the following instead. \n"
+            "a future release. Please import the following instead.\n"
             ">>> from pycaret.time_series import TSForecastingExperiment"
         )
         warnings.warn(msg, DeprecationWarning)
