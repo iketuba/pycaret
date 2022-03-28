@@ -22,7 +22,10 @@ from sktime.forecasting.model_selection import (
 from sktime.forecasting.base import BaseForecaster
 
 # from sktime.forecasting.compose import ForecastingPipeline
-from pycaret.utils.time_series.forecasting import PyCaretForecastingHorizonTypes
+from pycaret.utils.time_series.forecasting import (
+    PyCaretForecastingHorizonTypes,
+    reconcile_quantile_coverage,
+)
 from pycaret.utils.time_series.forecasting.pipeline import (
     PyCaretForecastingPipeline,
     _add_model_to_pipeline,
@@ -1075,6 +1078,8 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
         fold: int = 3,
         fh: Optional[Union[List[int], int, np.ndarray, ForecastingHorizon]] = 1,
         seasonal_period: Optional[Union[List[Union[int, str]], int, str]] = None,
+        quantile: Union[float, List[float]] = 0.5,
+        coverage: float = 0.9,
         enforce_pi: bool = False,
         enforce_exogenous: bool = True,
         n_jobs: Optional[int] = -1,
@@ -1376,7 +1381,19 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
         self.fig_kwargs = fig_kwargs or {}
         self._set_default_fig_kwargs()
 
-        self.enforce_pi = enforce_pi
+        # TODO for sktime 0.11.0
+        # Check the default values for quantile and coverage in setup
+        # should it be None or 0.5 for quantile.
+        # Should it be None or 0.9 for coverage.
+        (
+            self.point_quantile,
+            self.lower_quantile,
+            self.upper_quantile,
+        ) = reconcile_quantile_coverage(quantile=quantile, coverage=coverage)
+
+        # Enforce Prediction Interval must be set if point quantile != 0.5 since
+        # models without prediction interval can only support point quantile = 0.5
+        self.enforce_pi = enforce_pi or self.point_quantile != 0.5
         self.enforce_exogenous = enforce_exogenous
         self.preprocess = preprocess
         self.numeric_imputation_target = numeric_imputation_target
@@ -1851,6 +1868,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
             pipeline=self.pipeline, model=model
         )
 
+        quantile = self._get_master_quantiles()
         scores, cutoffs = cross_validate(
             forecaster=pipeline_with_model,
             y=data_y,
@@ -1861,6 +1879,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
             verbose=0,
             fit_params=fit_kwargs,
             return_train_score=False,
+            quantile=quantile,
             error_score=0,
             **additional_scorer_kwargs,
         )
@@ -2388,7 +2407,9 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
                     )
 
             additional_scorer_kwargs = self.get_additional_scorer_kwargs()
+            quantile = self._get_master_quantiles()
             model_grid.fit(
+                quantile=quantile,
                 y=data_y,
                 X=data_X,
                 additional_scorer_kwargs=additional_scorer_kwargs,
@@ -3292,6 +3313,21 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
 
 
         """
+        # TODO: For changes to sktime 0.11.0
+        # change argument alpha (input to predict model)?
+        # Users should be able to specify quantile (point) & coverage OR
+        # quantile (List of 3 values). This would be similar to what is done
+        # in setup. Need to plan this.
+
+        # We will have to reconcile this and pass to get_predictions_with_intervals
+        # appropriately.
+        # quantile = reconcile_quantile_coverage(quantile=quantile, coverage=coverage)
+
+        # Also, get_predictions_with_intervals might have to accept more than
+        # 1 coverage value??? - No, can not accept more than 1 coverage value
+        # since the metrics in predict_model need single value of lower and upper
+        # bound for coverage calculations.
+
         estimator.check_is_fitted()
 
         pipeline_with_model, estimator_ = self._predict_model_reconcile_pipe_estimator(
@@ -3304,7 +3340,7 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
             forecaster=pipeline_with_model,
             X=X,
             fh=fh,
-            alpha=alpha,
+            quantile=alpha,  # TODO: Change appropriately for 0.11.0
             merge=True,
             round=round,
         )
@@ -4296,6 +4332,16 @@ class TSForecastingExperiment(_SupervisedExperiment, TSForecastingPreprocessor):
         """
         additional_scorer_kwargs = {"sp": self.primary_sp_to_use}
         return additional_scorer_kwargs
+
+    def _get_master_quantiles(self) -> Tuple[float, float, float]:
+        """Returns the lower, point and upper quantiles (provided during setup)
+
+        Returns
+        -------
+        Tuple[float, float, float]
+            The lower, point and upper quantiles in that order.
+        """
+        return self.lower_quantile, self.point_quantile, self.upper_quantile
 
 
 class TimeSeriesExperiment(TSForecastingExperiment):

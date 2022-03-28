@@ -3,7 +3,7 @@ import time
 import warnings
 from collections import defaultdict
 from functools import partial
-from typing import Any, Dict, Generator, Optional, Tuple, Union
+from typing import Any, Dict, Generator, Optional, Tuple, Union, List
 
 import numpy as np
 import pandas as pd
@@ -48,6 +48,7 @@ def _fit_and_score(
     parameters,
     fit_params,
     return_train_score,
+    quantile: List[float],
     error_score=0,
     **additional_scorer_kwargs,
 ):
@@ -79,6 +80,10 @@ def _fit_and_score(
         Fit parameters to be used when training
     return_train_score : [type]
         Should the training scores be returned. Unused for now.
+    quantile : List[float]
+        Quantile (alpha values) for point forecast and prediction interval. Must
+        be a list containing 3 values corresponding to the point forecast, lower
+        and upper limits.
     error_score : int, optional
         Unused for now, by default 0
     **additional_scorer_kwargs: Dict[str, Any]
@@ -118,9 +123,8 @@ def _fit_and_score(
     lower = pd.Series([])
     upper = pd.Series([])
     if forecaster.is_fitted:
-        # TODO: Add alpha here???
         y_pred, lower, upper = get_predictions_with_intervals(
-            forecaster=forecaster, X=X_test
+            forecaster=forecaster, X=X_test, quantile=quantile
         )
 
         if (y_test.index.values != y_pred.index.values).any():
@@ -179,6 +183,7 @@ def cross_validate(
     fit_params,
     n_jobs,
     return_train_score,
+    quantile: List[float],
     error_score=0,
     verbose: int = 0,
     **additional_scorer_kwargs,
@@ -209,6 +214,10 @@ def cross_validate(
         Number of cores to use to parallelize. Refer to sklearn for details
     return_train_score : [type]
         Should the training scores be returned. Unused for now.
+    quantile : List[float]
+        Quantile (alpha values) for point forecast and prediction interval. Must
+        be a list containing 3 values corresponding to the point forecast, lower
+        and upper limits.
     error_score : int, optional
         Unused for now, by default 0
     verbose : int
@@ -243,6 +252,7 @@ def cross_validate(
                 parameters=None,
                 fit_params=fit_params,
                 return_train_score=return_train_score,
+                quantile=quantile,
                 error_score=error_score,
                 **additional_scorer_kwargs,
             )
@@ -297,6 +307,7 @@ class BaseGridSearch:
 
     def fit(
         self,
+        quantile: List[float],
         y: pd.Series,
         X: Optional[pd.DataFrame] = None,
         additional_scorer_kwargs: Optional[Dict[str, Any]] = None,
@@ -306,6 +317,10 @@ class BaseGridSearch:
 
         Parameters
         ----------
+        quantile : List[float]
+            Quantile (alpha values) for point forecast and prediction interval. Must
+            be a list containing 3 values corresponding to the point forecast, lower
+            and upper limits.
         y : pd.Series
             Target
         X : Optional[pd.DataFrame], optional
@@ -380,6 +395,7 @@ class BaseGridSearch:
                     parameters=parameters,
                     fit_params=fit_params,
                     return_train_score=self.return_train_score,
+                    quantile=quantile,
                     error_score=self.error_score,
                     **additional_scorer_kwargs,
                 )
